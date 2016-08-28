@@ -1,6 +1,15 @@
 .8051
 .include "../include/wixel.inc"
 
+;; r0 -
+;; r1 -
+;; r2 -
+;; r3 -
+;; r4 -
+;; r5 -
+;; r6 -
+;; r7 - Chip selects for displays.
+
 ;; Could use the faster RAM, but for now use it like this.
 DIGITS_0 equ 0xff00
 DIGITS_1 equ 0xff04
@@ -97,6 +106,13 @@ wait_clock:
   ;; Clear diplays
   lcall clear_displays
 
+  ;; P1.0 is debug LED output right
+  ;; P1.1 is debug LED output left
+  ;; P1.6 is IR input left
+  ;; P1.7 is IR input right
+  mov P1DIR, #(1 << 0) | (1 << 1)
+  mov P1, #0
+
   ;; Setup UART
   ;; SPI, no receiver, master, MSb first
   ;; @24MHz: BAUD_E=13, BAUD_M=85
@@ -123,6 +139,23 @@ wait_clock:
   lcall update_display
 
 main:
+
+check_left:
+  jb P1.6, left_led_off
+  clr P1.1
+  sjmp check_right
+left_led_off:
+  setb P1.1
+
+check_right:
+  jb P1.7, right_led_off
+  clr P1.0
+  sjmp done_ir_check
+right_led_off:
+  setb P1.0
+
+done_ir_check:
+
   ljmp main
 
 update_display:
@@ -166,16 +199,8 @@ show_third_digit:
   ret
 
 clear_displays:
-  mov r7, #8
+  mov r7, #0
   mov A, #0
-.if 0
-  mov DPTR, #DIGITS_0
-clear_displays_loop:
-  movx @DPTR, A
-  inc DPTR
-  djnz r7, clear_displays_loop
-.endif
-
   mov DPTR, #DIGITS_0
   movx @DPTR, A
   inc DPTR
@@ -224,28 +249,14 @@ inc_display:
   clr A
   movx @DPTR, A
 stop_carrying:
-
-.if 0
-  mov DPTR, #DIGITS_0+3
-  movx A, @DPTR
-  inc A
-  cjne A, #10, not_10
-  mov A, #0
-  inc DIGITS_0+2
-not_10:
-  movx @DPTR, A
-  mov DPTR, #DIGITS_0+2
-  movx A, @DPTR
-  cjne A, #10, not_10
-.endif
-
   mov DPTR, #DIGITS_0
   lcall update_display
   ret
 
 send_spi_0:
-  clr P0.4
-  clr P0.2
+  ;;clr P0.4
+  ;;clr P0.2
+  mov P0, r7
   mov U0DBUF, A
 wait_spi:
   mov A, U0CSR
@@ -256,8 +267,12 @@ wait_spi:
   ret
 
 interrupt_timer_1:
+  push psw
+  push ACC
   xrl P2, #0x02
   lcall inc_display
+  pop ACC
+  pop psw
   reti
 
 
