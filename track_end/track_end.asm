@@ -1,6 +1,10 @@
 .8051
 .include "../include/wixel.inc"
 
+;; Could use the faster RAM, but for now use it like this.
+DIGITS_0 equ 0xff00
+DIGITS_1 equ 0xff04
+
   ;; Reset Vector
 .org 0x400
   ljmp start
@@ -77,20 +81,21 @@ wait_clock:
   orl A, #0x04
   mov SLEEP, A
 
-  ;; Clear diplays
-  lcall clear_displays
-
   ;; P0.5 is CLK
   ;; P0.3 is DATA
   mov P0SEL, #(1 << 5) | (1 << 3)
 
-  ;; P0.4 is /CS
-  mov P0DIR, #(1 << 4)
-  mov P0, #(1 << 4)
+  ;; P0.4 is /CS (right)
+  ;; P0.2 is /CS (left)
+  mov P0DIR, #(1 << 4) | (1 << 2)
+  mov P0, #(1 << 4) | (1 << 2)
 
   ;; P2.1 is red LED
   mov P2DIR, #(1 << 1)
   mov P2, #(1 << 1)
+
+  ;; Clear diplays
+  lcall clear_displays
 
   ;; Setup UART
   ;; SPI, no receiver, master, MSb first
@@ -240,12 +245,14 @@ not_10:
 
 send_spi_0:
   clr P0.4
+  clr P0.2
   mov U0DBUF, A
 wait_spi:
   mov A, U0CSR
   anl A, #0x01
   jnz wait_spi
   setb P0.4
+  setb P0.2
   ret
 
 interrupt_timer_1:

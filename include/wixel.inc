@@ -27,7 +27,3 @@ IEN1 equ 0xb8
 SLEEP equ 0xbe
 CLKCON equ 0xc6
 
-DIGITS_0 equ 0xff00
-DIGITS_1 equ 0xff04
-
-
