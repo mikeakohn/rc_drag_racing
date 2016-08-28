@@ -108,8 +108,8 @@ wait_clock:
 
   ;; P1.0 is debug LED output right
   ;; P1.1 is debug LED output left
-  ;; P1.6 is IR input left
-  ;; P1.7 is IR input right
+  ;; P1.6 is light input left
+  ;; P1.7 is light input right
   mov P1DIR, #(1 << 0) | (1 << 1)
   mov P1, #0
 
@@ -150,6 +150,10 @@ left_led_off:
 check_right:
   jb P1.7, right_led_off
   clr P1.0
+  ;mov A, r7
+  ;anl A, #((1 << 2) ^ 0xff)
+  ;mov r7, A
+  mov r7, #(1 << 4)
   sjmp done_ir_check
 right_led_off:
   setb P1.0
