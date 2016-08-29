@@ -86,20 +86,24 @@ wait_clock:
   orl A, #0x04
   mov SLEEP, A
 
-  ;; P0.4 is /CS (right)
-  ;; P0.2 is /CS (left)
-  mov P0DIR, #(1 << 4) | (1 << 2)
-  mov P0, #(1 << 4) | (1 << 2)
+  ;; P0.5 is yellow top
+  ;; P0.4 is yellow middle
+  ;; P0.3 is yellow bottom
+  ;; P0.2 is green
+  ;; P0.1 is red left
+  ;; P0.0 is red right
+  mov P0SEL, #0x00
+  mov P0DIR, #0x3f
+  mov P0, #0x20
 
   ;; P2.1 is red LED
   mov P2DIR, #(1 << 1)
   mov P2, #(1 << 1)
 
-  ;; P1.0 is debug LED output right
-  ;; P1.1 is debug LED output left
+  ;; P1.0 is speaker
   ;; P1.6 is light input left
   ;; P1.7 is light input right
-  mov P1DIR, #(1 << 0) | (1 << 1)
+  mov P1DIR, #(1 << 0)
   mov P1, #0
 
   ;; Setup Timer 1
@@ -120,21 +124,17 @@ main:
 
 check_left:
   jb P1.6, left_led_off
-  clr P1.1
+  setb P0.1
   sjmp check_right
 left_led_off:
-  setb P1.1
+  clr P0.1
 
 check_right:
   jb P1.7, right_led_off
-  clr P1.0
-  ;mov A, r7
-  ;anl A, #((1 << 2) ^ 0xff)
-  ;mov r7, A
-  mov r7, #(1 << 4)
+  setb P0.0
   sjmp done_light_check
 right_led_off:
-  setb P1.0
+  clr P0.0
 
 done_light_check:
 
