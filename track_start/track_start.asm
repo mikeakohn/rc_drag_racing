@@ -5,9 +5,9 @@
 ;; r1 -
 ;; r2 -
 ;; r3 -
-;; r4 -
-;; r5 -
-;; r6 -
+;; r4 - interrupt count low byte
+;; r5 - interrupt count high byte
+;; r6 - lights state
 ;; r7 -
 
   ;; Reset Vector
@@ -68,7 +68,19 @@
 .org 0x048b
   reti
 
+;INTERRUPT_COUNT equ 0xff00
+
 start:
+  ;; Initialize INTERRUPT_COUNT
+  ;mov DPTR, #INTERRUPT_COUNT
+  ;mov A, #0
+  ;mov @DPTR, A
+  ;inc DPTR
+  ;mov @DPTR, A
+  mov A, #0
+  mov r4, A
+  mov r5, A
+
   ;; Put clock in 24MHz mode
   mov A, SLEEP
   anl A, #0xfb
@@ -94,31 +106,37 @@ wait_clock:
   ;; P0.0 is red right
   mov P0SEL, #0x00
   mov P0DIR, #0x3f
-  mov P0, #0x20
+  mov P0, #0x00
 
   ;; P2.1 is red LED
   mov P2DIR, #(1 << 1)
   mov P2, #(1 << 1)
 
   ;; P1.0 is speaker
+  ;; P1.5 is start button
   ;; P1.6 is light input left
   ;; P1.7 is light input right
   mov P1DIR, #(1 << 0)
   mov P1, #0
+  mov P2INP, #0x40  ; set P1 to pulldowns
+  ;setb P1SEL.5
 
   ;; Setup Timer 1
   ;; CNT = 18750, DIV=128
   ;; 24,000,000 / 18750 / 128 = 10 times a second interrupt
-  ;mov T1CC0L, #(9375 & 0xff)
-  ;mov T1CC0H, #(9375 >> 8)
-  mov T1CC0L, #(18750 & 0xff)
-  mov T1CC0H, #(18750 >> 8)
+  ;; 24,000,000 / (880 * 2) = 1760 times a second interrupt
+  mov T1CC0L, #(13636 & 0xff)
+  mov T1CC0H, #(13636 >> 8)
   ;; IM=1 (enable interrupt), MODE=1 (compare mode)
   mov T1CCTL0, #(1 << 6) | (1 << 2)
   mov IEN1, #(1 << 1)
   mov IE, #0x80
   ;; IDV=3 (128), MODE=2 (modulo)
-  mov T1CTL, #(3 << 2) | 2
+  ;mov T1CTL, #(3 << 2) | 2
+  mov T1CTL, #2
+
+  ;; lights state is in starting state (no lights, waiting for button)
+  mov r6, #0xff
 
 main:
 
@@ -135,19 +153,61 @@ check_right:
   sjmp done_light_check
 right_led_off:
   clr P0.0
-
 done_light_check:
+
+  cjne r6, #0xff, main
+  jnb P1.5, main
+  mov r6, #0x00
 
   ljmp main
 
 interrupt_timer_1:
   push psw
   push ACC
+
+  ;; if r6 is 0xff or 0xfe, don't drop lights or make sound.
+  mov A, r6
+  add A, #0x01
+  jz interrupt_timer_1_exit
+  mov A, r6
+  add A, #0x02
+  jz interrupt_timer_1_exit
+
+  ;; Increment interrupt count and leave if not 1 second has passed
+  mov A, #1
+  add A, r4
+  mov r4, A
+  mov A, r5
+  addc A, #0
+  mov r5, A
+
+  cjne r4, #0xe0, interrupt_timer_1_exit
+  cjne r5, #0x06, interrupt_timer_1_exit
+
+  ;; Clear interrupt count
+  mov A, #0
+  mov r4, A
+  mov r5, A
+
+  ;; Toggle debug light once a second
   xrl P2, #0x02
 
+  ;; 1 second has passed so update lights
+  anl P0, #0x03
+  cjne r6, #0, interrupt_timer_1_drop_lights
+  mov r6, #0x20
+  sjmp interrupt_timer_1_exit
+
+  ;; Drop lights on tree
+interrupt_timer_1_drop_lights:
+  mov A, r6
+  orl P0, A
+  clr C
+  rrc A
+  mov r6, A
+
+interrupt_timer_1_exit:
   pop ACC
   pop psw
   reti
-
-
 
