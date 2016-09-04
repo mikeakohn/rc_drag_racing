@@ -229,6 +229,8 @@ interrupt_timer_1_drop_lights:
   clr C
   rrc A
   mov r6, A
+  cjne A, #0, interrupt_timer_1_exit
+  mov r6, #0xff
 
 interrupt_timer_1_exit:
   pop ACC
