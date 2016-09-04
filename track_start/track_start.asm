@@ -4,7 +4,7 @@
 ;; r0 -
 ;; r1 -
 ;; r2 -
-;; r3 -
+;; r3 - sound counter
 ;; r4 - interrupt count low byte
 ;; r5 - interrupt count high byte
 ;; r6 - lights state
@@ -172,6 +172,30 @@ interrupt_timer_1:
   mov A, r6
   add A, #0x02
   jz interrupt_timer_1_exit
+
+  ;; Play A440 or A880
+  cjne r6, #0x02, interrupt_timer_1_a440
+  xrl P1, #0x01
+  sjmp interrupt_timer_1_done_sound
+interrupt_timer_1_a440:
+  mov A, r5
+  add A, #0xfd
+  jc interrupt_timer_1_no_sound
+
+  mov A, r6
+  anl A, #0x1c
+  jz interrupt_timer_1_no_sound
+  inc r3
+  mov A, r3
+  anl A, #1
+  cjne A, #1, interrupt_timer_1_done_sound
+  xrl P1, #0x01
+  sjmp interrupt_timer_1_done_sound
+
+interrupt_timer_1_no_sound:
+  clr P1.0
+
+interrupt_timer_1_done_sound:
 
   ;; Increment interrupt count and leave if not 1 second has passed
   mov A, #1
