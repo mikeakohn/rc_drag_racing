@@ -101,6 +101,23 @@ wait_clock:
   mov A, #0x00
   movx @DPTR, A
 
+  ;; TEST1 = 0x31 (for some reason the docs say to do this?)
+  mov DPTR, #TEST1
+  mov A, #0x31
+  movx @DPTR, A
+
+  ;; Turn on auto calibrate
+  ;mov DPTR, #MCSM0
+  ;mov A, #0x14
+  ;movx @DPTR, A
+
+  ;; Manually calibrate
+  mov RFST, #SCAL
+  mov DPTR, #MARCSTATE
+wait_scal:
+  movx A, @DPTR
+  cjne A, #0x01, wait_scal
+
   ;; P0.5 is CLK
   ;; P0.3 is DATA
   mov P0SEL, #(1 << 5) | (1 << 3)
@@ -124,7 +141,7 @@ wait_clock:
   mov P1DIR, #(1 << 0) | (1 << 1)
   mov P1, #0
 
-  ;; Setup UART
+  ;; Setup SPI
   ;; SPI, no receiver, master, MSb first
   ;; @24MHz: BAUD_E=13, BAUD_M=85
   ;; Equation: (((256 + 85) * (2^13)) / 2^28) * 24000000
@@ -149,9 +166,6 @@ wait_clock:
   mov DPTR, #DIGITS_0
   lcall update_display
 
-  ;; Strobe RX
-  mov RFST, #0x02
-
 main:
 
 check_left:
@@ -175,8 +189,16 @@ right_led_off:
 done_light_check:
 
   ;; Check if byte is waiting
+  ;; Strobe RX
+  mov RFST, #SRX
+  ;mov DPTR, #MARCSTATE
+wait_cal:
+  ;movx A, @DPTR
+  ;cjne A, #0x0d, wait_cal
+
   jnb TCON.RFTXRXIF, main
   clr TCON.RFTXRXIF
+
   mov A, RFD
   xrl P2, #0x02
   lcall clear_displays

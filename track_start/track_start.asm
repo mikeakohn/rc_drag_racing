@@ -109,6 +109,29 @@ wait_clock:
   mov A, #0x00
   movx @DPTR, A
 
+  ;; TEST1 = 0x31 (for some reason the docs say to do this?)
+  mov DPTR, #TEST1
+  mov A, #0x31
+  movx @DPTR, A
+
+  ;; Turn on auto calibrate
+  ;mov DPTR, #MCSM0
+  ;mov A, #0x14
+  ;movx @DPTR, A
+
+  ;; Manually calibrate
+  mov RFST, #SCAL
+  mov DPTR, #MARCSTATE
+wait_scal:
+  movx A, @DPTR
+  cjne A, #0x01, wait_scal
+
+
+  mov RFST, #SFSTXON
+wait_sfstxon:
+  ;movx A, @DPTR
+  ;cjne A, #0x01, wait_sfstxon
+
   ;; P0.5 is yellow top
   ;; P0.4 is yellow middle
   ;; P0.3 is yellow bottom
@@ -252,7 +275,7 @@ interrupt_timer_1_exit:
 
 send_data:
   ;; Strobe TX
-  mov RFST, #0x03
+  mov RFST, #STX
   jnb TCON.RFTXRXIF, send_data
   clr TCON.RFTXRXIF
   ;; Length is 1

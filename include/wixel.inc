@@ -41,5 +41,21 @@ PA_TABLE0 equ 0xdf2e
 PKTCTRL0 equ 0xdf04
 PKTCTRL1 equ 0xdf03
 PKTLEN equ 0xdf02
+PKTSTATUS equ 0xdf3c
+
+MARCSTATE equ 0xdf3b
+MCSM0 equ 0xdf14
+MCSM1 equ 0xdf13
+MCSM2 equ 0xdf12
+
+TEST0 equ 0xdf25
+TEST1 equ 0xdf24
+TEST2 equ 0xdf23
+
+SFSTXON equ 0x00
+SCAL equ 0x01
+SRX equ 0x02
+STX equ 0x03
+SIDLE equ 0x04
 
 
