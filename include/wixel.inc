@@ -30,3 +30,16 @@ IEN1 equ 0xb8
 SLEEP equ 0xbe
 CLKCON equ 0xc6
 
+RFST equ 0xe1
+RFD equ 0xd9
+RFIM equ 0x91
+RFIF equ 0xe9
+RFTXRXIE equ 0
+RFTXRXIF equ 1
+
+PA_TABLE0 equ 0xdf2e
+PKTCTRL0 equ 0xdf04
+PKTCTRL1 equ 0xdf03
+PKTLEN equ 0xdf02
+
+

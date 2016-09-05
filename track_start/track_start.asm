@@ -87,6 +87,7 @@ start:
   mov SLEEP, A
 
 wait_clock:
+  ;; Set to 24MHz crystal
   mov A, SLEEP
   anl A, #0x40
   jz wait_clock
@@ -97,6 +98,16 @@ wait_clock:
   mov A, SLEEP
   orl A, #0x04
   mov SLEEP, A
+
+  ;; Raise output power of radio
+  mov DPTR, #PA_TABLE0
+  mov A, #0xfe
+  movx @DPTR, A
+
+  ;; Don't need APPEND_STATUS
+  mov DPTR, #PKTCTRL1
+  mov A, #0x00
+  movx @DPTR, A
 
   ;; P0.5 is yellow top
   ;; P0.4 is yellow middle
@@ -157,6 +168,8 @@ done_light_check:
 
   cjne r6, #0xff, main
   jnb P1.5, main
+  mov A, #0
+  lcall send_data
   mov r6, #0x00
 
   ljmp main
@@ -236,4 +249,19 @@ interrupt_timer_1_exit:
   pop ACC
   pop psw
   reti
+
+send_data:
+  ;; Strobe TX
+  mov RFST, #0x03
+  jnb TCON.RFTXRXIF, send_data
+  clr TCON.RFTXRXIF
+  ;; Length is 1
+  mov RFD, #0x01
+send_data_wait:
+  jnb TCON.RFTXRXIF, send_data_wait
+  clr TCON.RFTXRXIF
+  ;; Data
+  mov RFD, A
+  ret
+
 

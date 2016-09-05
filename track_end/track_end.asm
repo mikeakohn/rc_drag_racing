@@ -79,6 +79,7 @@ start:
   mov SLEEP, A
 
 wait_clock:
+  ;; Switch to 24MHz clock
   mov A, SLEEP
   anl A, #0x40
   jz wait_clock
@@ -89,6 +90,16 @@ wait_clock:
   mov A, SLEEP
   orl A, #0x04
   mov SLEEP, A
+
+  ;; Raise output power of radio
+  mov DPTR, #PA_TABLE0
+  mov A, #0xfe
+  movx @DPTR, A
+
+  ;; Don't need APPEND_STATUS
+  mov DPTR, #PKTCTRL1
+  mov A, #0x00
+  movx @DPTR, A
 
   ;; P0.5 is CLK
   ;; P0.3 is DATA
@@ -138,6 +149,9 @@ wait_clock:
   mov DPTR, #DIGITS_0
   lcall update_display
 
+  ;; Strobe RX
+  mov RFST, #0x02
+
 main:
 
 check_left:
@@ -159,6 +173,13 @@ right_led_off:
   setb P1.0
 
 done_light_check:
+
+  ;; Check if byte is waiting
+  jnb TCON.RFTXRXIF, main
+  clr TCON.RFTXRXIF
+  mov A, RFD
+  xrl P2, #0x02
+  lcall clear_displays
 
   ljmp main
 
@@ -273,7 +294,7 @@ wait_spi:
 interrupt_timer_1:
   push psw
   push ACC
-  xrl P2, #0x02
+  ;xrl P2, #0x02
   lcall inc_display
   pop ACC
   pop psw
