@@ -188,18 +188,24 @@ right_led_off:
 
 done_light_check:
 
+  ;orl P2, #0x02
+
   ;; Check if byte is waiting
   ;; Strobe RX
   mov RFST, #SRX
-  ;mov DPTR, #MARCSTATE
+
+  ;; is this needed?
+  mov DPTR, #MARCSTATE
 wait_cal:
-  ;movx A, @DPTR
-  ;cjne A, #0x0d, wait_cal
+  movx A, @DPTR
+  cjne A, #0x0d, wait_cal
+
+  ;xrl P2, #0x02
 
   jnb TCON.RFTXRXIF, main
   clr TCON.RFTXRXIF
-
   mov A, RFD
+
   xrl P2, #0x02
   lcall clear_displays
 

@@ -275,16 +275,24 @@ interrupt_timer_1_exit:
 
 send_data:
   ;; Strobe TX
-  mov RFST, #STX
-  jnb TCON.RFTXRXIF, send_data
   clr TCON.RFTXRXIF
+  mov RFST, #STX
+send_data_wait_strobe:
+  jnb TCON.RFTXRXIF, send_data_wait_strobe
   ;; Length is 1
+  clr TCON.RFTXRXIF
   mov RFD, #0x01
 send_data_wait:
   jnb TCON.RFTXRXIF, send_data_wait
-  clr TCON.RFTXRXIF
   ;; Data
   mov RFD, A
+;send_data_wait_done:
+;  mov A, RFIF
+;  anl A, #0x10
+;  jz send_data_wait_done
+;  mov A, RFIF
+;  anl A, #0xef
+;  mov RFIF, A
   ret
 
 
