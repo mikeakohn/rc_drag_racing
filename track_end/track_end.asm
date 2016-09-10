@@ -12,7 +12,9 @@
 
 ;; Could use the faster RAM, but for now use it like this.
 DIGITS_0 equ 0xff00
-DIGITS_1 equ 0xff04
+PACKET_LEN equ 1
+DMA_CONFIG equ 0xf000
+PACKET equ 0xf010
 
   ;; Reset Vector
 .org 0x400
@@ -91,39 +93,37 @@ wait_clock:
   orl A, #0x04
   mov SLEEP, A
 
-  ;; Raise output power of radio
-  mov DPTR, #PA_TABLE0
-  mov A, #0xfe
-  movx @DPTR, A
+  // Init radio registers
+.include "../include/radio_registers.inc"
 
-  ;; Don't need APPEND_STATUS
-  mov DPTR, #PKTCTRL1
-  mov A, #0x00
-  movx @DPTR, A
+  SET_REGISTER(CHANNR, 128)
+  SET_REGISTER(PKTLEN, PACKET_LEN)
+  SET_REGISTER(MCSM0, 0x14)
+  SET_REGISTER(MCSM1, 0x00)
+  SET_REGISTER(IOCFG2, 0b011011);
 
-  ;; TEST1 = 0x31 (for some reason the docs say to do this?)
-  mov DPTR, #TEST1
-  mov A, #0x31
-  movx @DPTR, A
+  SET_REGISTER(DMA_CONFIG + 0, 0xdf);
+  SET_REGISTER(DMA_CONFIG + 1, RFD);
+  SET_REGISTER(DMA_CONFIG + 2, PACKET >> 8);
+  SET_REGISTER(DMA_CONFIG + 3, PACKET & 0xff);
+  SET_REGISTER(DMA_CONFIG + 4, 0b10000000);
+  SET_REGISTER(DMA_CONFIG + 5, PACKET_LEN + 1 + 2);
+  SET_REGISTER(DMA_CONFIG + 6, 19);
+  SET_REGISTER(DMA_CONFIG + 7, 0x10);
 
-  ;; Turn on auto calibrate
-  ;mov DPTR, #MCSM0
-  ;mov A, #0x14
-  ;movx @DPTR, A
+  mov DMA1CFGH, DMA_CONFIG >> 8
+  mov DMA1CFGL, DMA_CONFIG & 0xff
 
-  ;; Manually calibrate
-  mov RFST, #SCAL
-  mov DPTR, #MARCSTATE
-wait_scal:
-  movx A, @DPTR
-  cjne A, #0x01, wait_scal
+  mov DMAARM, #(1 << DMA_CHANNEL_RADIO)
 
-  ;; P0.5 is CLK
-  ;; P0.3 is DATA
+  mov RFST, #SRX
+
+  ;; P0.5 is SPI CLK
+  ;; P0.3 is SPI DATA
   mov P0SEL, #(1 << 5) | (1 << 3)
 
-  ;; P0.4 is /CS (right)
-  ;; P0.2 is /CS (left)
+  ;; P0.4 is SPI /CS (right)
+  ;; P0.2 is SPI /CS (left)
   mov P0DIR, #(1 << 4) | (1 << 2)
   mov P0, #(1 << 4) | (1 << 2)
 
@@ -188,23 +188,18 @@ right_led_off:
 
 done_light_check:
 
-  ;orl P2, #0x02
-
   ;; Check if byte is waiting
-  ;; Strobe RX
+  mov r6, RFIF
+  mov A, r6
+  anl A, #0x10
+  jz main  
+
+  ;; reset RFIF 
+  mov A, r6
+  anl A, #0xef
+  mov RFIF, A
   mov RFST, #SRX
-
-  ;; is this needed?
-  mov DPTR, #MARCSTATE
-wait_cal:
-  movx A, @DPTR
-  cjne A, #0x0d, wait_cal
-
-  ;xrl P2, #0x02
-
-  jnb TCON.RFTXRXIF, main
-  clr TCON.RFTXRXIF
-  mov A, RFD
+  mov DMAARM, #(1 << DMA_CHANNEL_RADIO)
 
   xrl P2, #0x02
   lcall clear_displays

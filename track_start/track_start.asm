@@ -10,6 +10,11 @@
 ;; r6 - lights state
 ;; r7 -
 
+;INTERRUPT_COUNT equ 0xff00
+PACKET_LEN equ 1
+DMA_CONFIG equ 0xf000
+PACKET equ 0xf010
+
   ;; Reset Vector
 .org 0x400
   ljmp start
@@ -68,8 +73,6 @@
 .org 0x048b
   reti
 
-;INTERRUPT_COUNT equ 0xff00
-
 start:
   ;; Initialize INTERRUPT_COUNT
   ;mov DPTR, #INTERRUPT_COUNT
@@ -99,38 +102,30 @@ wait_clock:
   orl A, #0x04
   mov SLEEP, A
 
-  ;; Raise output power of radio
-  mov DPTR, #PA_TABLE0
-  mov A, #0xfe
-  movx @DPTR, A
+  // Init radio registers
+.include "../include/radio_registers.inc"
 
-  ;; Don't need APPEND_STATUS
-  mov DPTR, #PKTCTRL1
-  mov A, #0x00
-  movx @DPTR, A
+  SET_REGISTER(CHANNR, 128)
+  SET_REGISTER(PKTLEN, PACKET_LEN)
+  SET_REGISTER(MCSM0, 0x14)
+  SET_REGISTER(MCSM1, 0x00)
+  SET_REGISTER(IOCFG2, 0b011011);
 
-  ;; TEST1 = 0x31 (for some reason the docs say to do this?)
-  mov DPTR, #TEST1
-  mov A, #0x31
-  movx @DPTR, A
+  SET_REGISTER(PACKET + 0, 1);
 
-  ;; Turn on auto calibrate
-  ;mov DPTR, #MCSM0
-  ;mov A, #0x14
-  ;movx @DPTR, A
+  SET_REGISTER(DMA_CONFIG + 0, PACKET >> 8);
+  SET_REGISTER(DMA_CONFIG + 1, PACKET & 0xff);
+  SET_REGISTER(DMA_CONFIG + 2, 0xdf);
+  SET_REGISTER(DMA_CONFIG + 3, RFD);
+  SET_REGISTER(DMA_CONFIG + 4, 0b00100000);
+  SET_REGISTER(DMA_CONFIG + 5, PACKET_LEN + 1);
+  SET_REGISTER(DMA_CONFIG + 6, 19);
+  SET_REGISTER(DMA_CONFIG + 7, 0x40);
 
-  ;; Manually calibrate
-  mov RFST, #SCAL
-  mov DPTR, #MARCSTATE
-wait_scal:
-  movx A, @DPTR
-  cjne A, #0x01, wait_scal
+  mov DMA1CFGH, DMA_CONFIG >> 8
+  mov DMA1CFGL, DMA_CONFIG & 0xff
 
-
-  mov RFST, #SFSTXON
-wait_sfstxon:
-  ;movx A, @DPTR
-  ;cjne A, #0x01, wait_sfstxon
+  mov RFST, #SIDLE
 
   ;; P0.5 is yellow top
   ;; P0.4 is yellow middle
@@ -274,25 +269,14 @@ interrupt_timer_1_exit:
   reti
 
 send_data:
-  ;; Strobe TX
-  clr TCON.RFTXRXIF
+  mov DPTR, #PACKET + 1
+  movx @DPTR, A
+
+  mov A, RFIF
+  anl A, #0xef
+  mov RFIF, A
+  mov DMAARM, #(1 << DMA_CHANNEL_RADIO)
   mov RFST, #STX
-send_data_wait_strobe:
-  jnb TCON.RFTXRXIF, send_data_wait_strobe
-  ;; Length is 1
-  clr TCON.RFTXRXIF
-  mov RFD, #0x01
-send_data_wait:
-  jnb TCON.RFTXRXIF, send_data_wait
-  ;; Data
-  mov RFD, A
-;send_data_wait_done:
-;  mov A, RFIF
-;  anl A, #0x10
-;  jz send_data_wait_done
-;  mov A, RFIF
-;  anl A, #0xef
-;  mov RFIF, A
   ret
 
 

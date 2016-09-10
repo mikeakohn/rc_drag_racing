@@ -1,4 +1,11 @@
 
+
+.macro SET_REGISTER(register, value)
+  mov DPTR, #register
+  mov A, #value
+  movx @DPTR, A
+.endm
+
 U0CSR equ 0x86
 U0GCR equ 0xc5
 U0DBUF equ 0xc1
@@ -57,5 +64,49 @@ SCAL equ 0x01
 SRX equ 0x02
 STX equ 0x03
 SIDLE equ 0x04
+
+MDMCFG0 equ 0xdf10
+MDMCFG1 equ 0xdf0f
+MDMCFG2 equ 0xdf0e
+MDMCFG3 equ 0xdf0d
+MDMCFG4 equ 0xdf0c
+
+FREQ0 equ 0xdf0b
+FREQ1 equ 0xdf0a
+FREQ2 equ 0xdf09
+FREND0 equ 0xdf1b
+FREND1 equ 0xdf1a
+FOCCFG equ 0xdf15
+FSCTRL0 equ 0xdf08
+FSCTRL1 equ 0xdf07
+FSCAL0 equ 0xdf1f
+FSCAL1 equ 0xdf1e
+FSCAL2 equ 0xdf1d
+FSCAL3 equ 0xdf1c
+
+BSCFG equ 0xdf16
+AGCCTRL0 equ 0xdf19
+AGCCTRL1 equ 0xdf18
+AGCCTRL2 equ 0xdf17
+
+ADDR equ 0xdf05
+CHANNR equ 0xdf06
+
+IOCFG0 equ 0xdf31
+IOCFG1 equ 0xdf30
+IOCFG2 equ 0xdf2f
+
+DMA_CHANNEL_RADIO equ 1
+DMAARM equ 0xd6
+DMAREQ equ 0xd7
+DMA0CFGL equ 0xd4
+DMA0CFGH equ 0xd5
+DMA1CFGL equ 0xd2
+DMA1CFGH equ 0xd3
+DMAIRQ equ 0xd1
+
+ENDIAN equ 0x95
+
+
 
 
