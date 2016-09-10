@@ -111,8 +111,8 @@ wait_clock:
   SET_REGISTER(DMA_CONFIG + 6, 19);
   SET_REGISTER(DMA_CONFIG + 7, 0x10);
 
-  mov DMA1CFGH, DMA_CONFIG >> 8
-  mov DMA1CFGL, DMA_CONFIG & 0xff
+  mov DMA1CFGH, #(DMA_CONFIG >> 8)
+  mov DMA1CFGL, #(DMA_CONFIG & 0xff)
 
   mov DMAARM, #(1 << DMA_CHANNEL_RADIO)
 
@@ -178,20 +178,16 @@ left_led_off:
 check_right:
   jb P1.7, right_led_off
   clr P1.0
-  ;mov A, r7
-  ;anl A, #((1 << 2) ^ 0xff)
-  ;mov r7, A
   mov r7, #(1 << 4)
   sjmp done_light_check
 right_led_off:
   setb P1.0
-
 done_light_check:
 
   ;; Check if byte is waiting
   mov r6, RFIF
   mov A, r6
-  anl A, #0x10
+  anl A, #(1 << 4)
   jz main  
 
   ;; reset RFIF 
@@ -202,7 +198,7 @@ done_light_check:
   mov DMAARM, #(1 << DMA_CHANNEL_RADIO)
 
   xrl P2, #0x02
-  lcall clear_displays
+  ;lcall clear_displays
 
   ljmp main
 

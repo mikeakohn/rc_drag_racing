@@ -122,8 +122,8 @@ wait_clock:
   SET_REGISTER(DMA_CONFIG + 6, 19);
   SET_REGISTER(DMA_CONFIG + 7, 0x40);
 
-  mov DMA1CFGH, DMA_CONFIG >> 8
-  mov DMA1CFGL, DMA_CONFIG & 0xff
+  mov DMA1CFGH, #(DMA_CONFIG >> 8)
+  mov DMA1CFGL, #(DMA_CONFIG & 0xff)
 
   mov RFST, #SIDLE
 
