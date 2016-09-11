@@ -200,6 +200,7 @@ done_light_check:
 
   xrl P2, #0x02
 
+  ;; if receive_radio == 1, clear display, reset fault /CS's
   mov r6, A
   add A, #0xff
   jnz not_state_1
@@ -209,6 +210,7 @@ done_light_check:
   mov r7, #0
   ljmp main
 not_state_1:
+  ;; if receive_radio == 2, set /CS's to fault /CS's value, r3 = 1 (counter on)
   mov A, r6
   add A, #0xfe
   jnz not_state_2
@@ -217,20 +219,28 @@ not_state_1:
   mov r3, #1
   ljmp main
 not_state_2:
+  ;; if receive_radio == 3, fault on the left side, clear display left
   mov A, r6
   add A, #0xfd
   jnz not_left_fault
   mov A, r4
   orl A, #(1<<2)
   mov r4, A
+  mov IE, #0x00
+  lcall clear_left
+  mov IE, #0x80
   ljmp main
 not_left_fault:
+  ;; if receive_radio == 4, fault on the right side, clear display right
   mov A, r6
   add A, #0xfc
   jnz not_right_fault
   mov A, r4
   orl A, #(1<<4)
   mov r4, A
+  mov IE, #0x00
+  lcall clear_right
+  mov IE, #0x80
   ljmp main
 not_right_fault:
   ljmp main
@@ -292,6 +302,7 @@ clear_left:
   mov A, #0x76
   lcall send_spi_0
   mov A, r2
+  orl A, #(1 << 2)
   mov r7, A
   ret
 
@@ -302,6 +313,7 @@ clear_right:
   mov A, #0x76
   lcall send_spi_0
   mov A, r2
+  orl A, #(1 << 4)
   mov r7, A
   ret
 
