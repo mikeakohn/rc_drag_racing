@@ -3,7 +3,7 @@
 
 ;; r0 -
 ;; r1 -
-;; r2 -
+;; r2 - Save r7 in clear left/right
 ;; r3 - Count mode: 0=not counting, 1=counting
 ;; r4 - Chip select for after light turns green.
 ;; r5 - Temporary in receive_radio funtion.
@@ -11,7 +11,7 @@
 ;; r7 - Chip selects for displays.
 
 ;; Could use the faster RAM, but for now use it like this.
-DIGITS_0 equ 0xff00
+DIGITS_0 equ 0xf040
 PACKET_LEN equ 3
 DMA_CONFIG equ 0xf000
 PACKET equ 0xf010
@@ -75,6 +75,9 @@ PACKET equ 0xf010
   reti
 
 start:
+  ;; Dont't count
+  mov r3, #0
+
   ;; Put clock in 24MHz mode
   mov A, SLEEP
   anl A, #0xfb
@@ -149,6 +152,11 @@ wait_clock:
   mov U0GCR, #(0x20 |13)
   mov U0BAUD, #85
 
+  ;; Init display
+  lcall set_brightness
+  ;mov DPTR, #DIGITS_0
+  ;lcall update_display
+
   ;; Setup Timer 1
   ;; CNT = 18750, DIV=128
   ;; 24,000,000 / 18750 / 128 = 10 times a second interrupt
@@ -162,9 +170,6 @@ wait_clock:
   mov IE, #0x80
   ;; IDV=3 (128), MODE=2 (modulo)
   mov T1CTL, #(3 << 2) | 2
-
-  mov DPTR, #DIGITS_0
-  lcall update_display
 
 main:
 
@@ -250,6 +255,36 @@ show_third_digit:
   lcall send_spi_0
   ret
 
+set_brightness:
+  mov r7, #0
+  mov A, #0x7a
+  lcall send_spi_0
+  mov A, #0xff
+  lcall send_spi_0
+  mov A, #0x76
+  lcall send_spi_0
+  ret
+
+clear_left:
+  mov A, r7
+  mov r2, A
+  mov r7, #(1 << 4)
+  mov A, #0x76
+  lcall send_spi_0
+  mov A, r2
+  mov r7, A
+  ret
+
+clear_right:
+  mov A, r7
+  mov r2, A
+  mov r7, #(1 << 2)
+  mov A, #0x76
+  lcall send_spi_0
+  mov A, r2
+  mov r7, A
+  ret
+
 clear_displays:
   mov r7, #0
   mov A, #0
@@ -303,9 +338,9 @@ inc_display:
   clr A
   movx @DPTR, A
 stop_carrying:
+inc_display_exit:
   mov DPTR, #DIGITS_0
   lcall update_display
-inc_display_exit:
   ret
 
 send_spi_0:

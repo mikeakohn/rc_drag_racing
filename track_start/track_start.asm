@@ -252,7 +252,7 @@ interrupt_timer_1_done_sound:
   mov r5, A
 
   ;; Toggle debug light once a second
-  xrl P2, #0x02
+  ;xrl P2, #0x02
 
   ;; 1 second has passed so update lights
   anl P0, #0x03
@@ -276,6 +276,9 @@ interrupt_timer_1_exit:
   reti
 
 send_radio:
+  ;; toggle debug LED on send
+  xrl P2, #0x02
+
   mov DPTR, #PACKET + 1
   movx @DPTR, A
 
