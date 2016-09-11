@@ -8,7 +8,7 @@
 ;; r4 - interrupt count low byte
 ;; r5 - interrupt count high byte
 ;; r6 - lights state
-;; r7 -
+;; r7 - fault detect: bits: 0 left, 1 sent, 2 right, 3 sent
 
 ;INTERRUPT_COUNT equ 0xff00
 PACKET_LEN equ 3
@@ -172,6 +172,11 @@ main:
 check_left:
   jb P1.6, left_led_off
   setb P0.1
+  mov IE, #0x00
+  mov A, r7
+  orl A, #1
+  mov r7, A
+  mov IE, #0x80
   sjmp check_right
 left_led_off:
   clr P0.1
@@ -179,14 +184,23 @@ left_led_off:
 check_right:
   jb P1.7, right_led_off
   setb P0.0
+  mov IE, #0x00
+  mov A, r7
+  orl A, #4
+  mov IE, #0x80
+  mov r7, A
   sjmp done_light_check
 right_led_off:
   clr P0.0
 done_light_check:
 
+  ;; if (light_state != 0xff || button isn't pushed) { goto main; }
   cjne r6, #0xff, main
   jnb P1.5, main
+
+  ;; Send command to reset counters to track_end circuit
   mov A, #1
+  mov r7, #0
   mov r2, #1
   lcall send_radio
   mov r6, #0x00
@@ -197,13 +211,39 @@ interrupt_timer_1:
   push psw
   push ACC
 
-  ;; if r6 is 0xff or 0xfe, don't drop lights or make sound.
-  mov A, r6
-  add A, #0x01
-  jz interrupt_timer_1_exit
-  mov A, r6
-  add A, #0x02
-  jz interrupt_timer_1_exit
+  ;; if r6 is 0xff don't drop lights or make sound.
+
+  cjne r6, #0xff, interrupt_timer_1_not_ff
+  sjmp interrupt_timer_1_exit
+interrupt_timer_1_not_ff:
+  ;; if light is green, ignore faults
+  cjne r6, #0x04, interrupt_timer_1_check_fault
+  sjmp interrupt_timer_1_not_01
+
+  ;; Check for an un-sent fault
+interrupt_timer_1_check_fault:
+  mov A, r7
+  anl A, #0x03
+  add A, #0xff
+  jnz interrupt_timer_1_not_left_fault
+  mov A, r7
+  orl A, #0x02
+  mov r7, A
+  mov A, #3
+  lcall send_radio
+interrupt_timer_1_not_left_fault:
+  mov A, r7
+  anl A, #0x0c
+  add A, #0xfc
+  jnz interrupt_timer_1_not_right_fault
+  mov A, r7
+  orl A, #0x08
+  mov r7, A
+  mov A, #4
+  lcall send_radio
+interrupt_timer_1_not_right_fault:
+
+interrupt_timer_1_not_01:
 
   ;; Play A440 or A880
   cjne r6, #0x02, interrupt_timer_1_a440
@@ -243,10 +283,11 @@ interrupt_timer_1_done_sound:
   addc A, #0
   mov r5, A
 
+  ;; if (r5:r4 != 0x06e0) { goto interrupt_timer_1_exit; }
   cjne r4, #0xe0, interrupt_timer_1_exit
   cjne r5, #0x06, interrupt_timer_1_exit
 
-  ;; Clear interrupt count
+  ;; Clear interrupt count: r5:r4 = 0;
   mov A, #0
   mov r4, A
   mov r5, A

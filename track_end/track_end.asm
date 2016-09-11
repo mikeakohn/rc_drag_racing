@@ -176,7 +176,9 @@ main:
 check_left:
   jb P1.6, left_led_off
   clr P1.1
-  ;mov r7, #(1 << 2)
+  mov A, r7
+  orl A, #(1 << 2)
+  mov r7, A
   sjmp check_right
 left_led_off:
   setb P1.1
@@ -184,7 +186,9 @@ left_led_off:
 check_right:
   jb P1.7, right_led_off
   clr P1.0
-  ;mov r7, #(1 << 4)
+  mov A, r7
+  orl A, #(1 << 4)
+  mov r7, A
   sjmp done_light_check
 right_led_off:
   setb P1.0
@@ -201,18 +205,34 @@ done_light_check:
   jnz not_state_1
   mov r3, #0
   lcall clear_displays
-  ;mov r4, #0
+  mov r4, #0
+  mov r7, #0
   ljmp main
 not_state_1:
   mov A, r6
   add A, #0xfe
   jnz not_state_2
-  ;mov A, r4
-  ;mov r7, A
+  mov A, r4
+  mov r7, A
   mov r3, #1
   ljmp main
-
 not_state_2:
+  mov A, r6
+  add A, #0xfd
+  jnz not_left_fault
+  mov A, r4
+  orl A, #(1<<2)
+  mov r4, A
+  ljmp main
+not_left_fault:
+  mov A, r6
+  add A, #0xfc
+  jnz not_right_fault
+  mov A, r4
+  orl A, #(1<<4)
+  mov r4, A
+  ljmp main
+not_right_fault:
   ljmp main
 
 update_display:
