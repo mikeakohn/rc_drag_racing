@@ -3,7 +3,7 @@
 
 ;; r0 -
 ;; r1 -
-;; r2 -
+;; r2 - state:  0=idle, 1=lights falling, 2=green
 ;; r3 - sound counter
 ;; r4 - interrupt count low byte
 ;; r5 - interrupt count high byte
@@ -11,7 +11,7 @@
 ;; r7 -
 
 ;INTERRUPT_COUNT equ 0xff00
-PACKET_LEN equ 1
+PACKET_LEN equ 3
 DMA_CONFIG equ 0xf000
 PACKET equ 0xf010
 
@@ -75,14 +75,12 @@ PACKET equ 0xf010
 
 start:
   ;; Initialize INTERRUPT_COUNT
-  ;mov DPTR, #INTERRUPT_COUNT
-  ;mov A, #0
-  ;mov @DPTR, A
-  ;inc DPTR
-  ;mov @DPTR, A
   mov A, #0
   mov r4, A
   mov r5, A
+
+  ;; Light state (for radio) is idle
+  mov r2, #0
 
   ;; Put clock in 24MHz mode
   mov A, SLEEP
@@ -109,9 +107,11 @@ wait_clock:
   SET_REGISTER(PKTLEN, PACKET_LEN)
   SET_REGISTER(MCSM0, 0x14)
   SET_REGISTER(MCSM1, 0x00)
-  SET_REGISTER(IOCFG2, 0b011011);
+  ;SET_REGISTER(IOCFG2, 0b011011);
 
-  SET_REGISTER(PACKET + 0, 1);
+  SET_REGISTER(PACKET + 0, PACKET_LEN);
+  SET_REGISTER(PACKET + 2, 3);
+  SET_REGISTER(PACKET + 3, 5);
 
   SET_REGISTER(DMA_CONFIG + 0, PACKET >> 8);
   SET_REGISTER(DMA_CONFIG + 1, PACKET & 0xff);
@@ -186,8 +186,9 @@ done_light_check:
 
   cjne r6, #0xff, main
   jnb P1.5, main
-  mov A, #0
-  lcall send_data
+  mov A, #1
+  mov r2, #1
+  lcall send_radio
   mov r6, #0x00
 
   ljmp main
@@ -207,6 +208,12 @@ interrupt_timer_1:
   ;; Play A440 or A880
   cjne r6, #0x02, interrupt_timer_1_a440
   xrl P1, #0x01
+  mov A, r2
+  add A, #0xff
+  jnz interrupt_timer_1_done_sound
+  mov A, #2
+  mov r2, A ; move to state 2
+  lcall send_radio
   sjmp interrupt_timer_1_done_sound
 interrupt_timer_1_a440:
   mov A, r5
@@ -268,7 +275,7 @@ interrupt_timer_1_exit:
   pop psw
   reti
 
-send_data:
+send_radio:
   mov DPTR, #PACKET + 1
   movx @DPTR, A
 

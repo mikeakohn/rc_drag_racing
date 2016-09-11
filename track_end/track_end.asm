@@ -4,15 +4,15 @@
 ;; r0 -
 ;; r1 -
 ;; r2 -
-;; r3 -
-;; r4 -
-;; r5 -
-;; r6 -
+;; r3 - Count mode: 0=not counting, 1=counting
+;; r4 - Chip select for after light turns green.
+;; r5 - Temporary in receive_radio funtion.
+;; r6 - Temporary in receive_radio function.
 ;; r7 - Chip selects for displays.
 
 ;; Could use the faster RAM, but for now use it like this.
 DIGITS_0 equ 0xff00
-PACKET_LEN equ 1
+PACKET_LEN equ 3
 DMA_CONFIG equ 0xf000
 PACKET equ 0xf010
 
@@ -100,7 +100,7 @@ wait_clock:
   SET_REGISTER(PKTLEN, PACKET_LEN)
   SET_REGISTER(MCSM0, 0x14)
   SET_REGISTER(MCSM1, 0x00)
-  SET_REGISTER(IOCFG2, 0b011011);
+  ;SET_REGISTER(IOCFG2, 0b011011);
 
   SET_REGISTER(DMA_CONFIG + 0, 0xdf);
   SET_REGISTER(DMA_CONFIG + 1, RFD);
@@ -171,6 +171,7 @@ main:
 check_left:
   jb P1.6, left_led_off
   clr P1.1
+  ;mov r7, #(1 << 2)
   sjmp check_right
 left_led_off:
   setb P1.1
@@ -178,28 +179,35 @@ left_led_off:
 check_right:
   jb P1.7, right_led_off
   clr P1.0
-  mov r7, #(1 << 4)
+  ;mov r7, #(1 << 4)
   sjmp done_light_check
 right_led_off:
   setb P1.0
 done_light_check:
 
   ;; Check if byte is waiting
-  mov r6, RFIF
-  mov A, r6
-  anl A, #(1 << 4)
-  jz main  
-
-  ;; reset RFIF 
-  mov A, r6
-  anl A, #0xef
-  mov RFIF, A
-  mov RFST, #SRX
-  mov DMAARM, #(1 << DMA_CHANNEL_RADIO)
+  lcall receive_radio
+  jz main
 
   xrl P2, #0x02
-  ;lcall clear_displays
 
+  mov r6, A
+  add A, #0xff
+  jnz not_state_1
+  mov r3, #0
+  lcall clear_displays
+  ;mov r4, #0
+  ljmp main
+not_state_1:
+  mov A, r6
+  add A, #0xfe
+  jnz not_state_2
+  ;mov A, r4
+  ;mov r7, A
+  mov r3, #1
+  ljmp main
+
+not_state_2:
   ljmp main
 
 update_display:
@@ -256,6 +264,8 @@ clear_displays:
   ret
 
 inc_display:
+  mov A, r3
+  jz inc_display_exit
   ;; Inc digit 3
   mov DPTR, #DIGITS_0+3
   movx A, @DPTR
@@ -295,6 +305,7 @@ inc_display:
 stop_carrying:
   mov DPTR, #DIGITS_0
   lcall update_display
+inc_display_exit:
   ret
 
 send_spi_0:
@@ -319,5 +330,35 @@ interrupt_timer_1:
   pop psw
   reti
 
+receive_radio:
+  ;; Check if byte is waiting
+  mov r6, RFIF
+  mov A, r6
+  anl A, #(1 << 4)
+  jnz receive_radio_has_data
+  ret
+receive_radio_has_data:
+
+  mov DPTR, #PACKET + 1
+  movx A, @DPTR
+  mov r5, A
+
+  mov DPTR, #LQI
+  movx A, @DPTR
+  anl A, #0x80
+  jnz receive_radio_crc_okay
+  mov r5, #0
+receive_radio_crc_okay:
+
+  ;; reset RFIF
+  mov A, r6
+  anl A, #0xef
+  mov RFIF, A
+  mov RFST, #SRX
+  mov DMAARM, #(1 << DMA_CHANNEL_RADIO)
+
+  ;; return command byte read
+  mov A, r5
+  ret
 
 

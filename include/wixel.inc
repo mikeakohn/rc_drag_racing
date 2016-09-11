@@ -91,6 +91,7 @@ AGCCTRL2 equ 0xdf17
 
 ADDR equ 0xdf05
 CHANNR equ 0xdf06
+LQI equ 0xdf38
 
 IOCFG0 equ 0xdf31
 IOCFG1 equ 0xdf30
