@@ -217,8 +217,10 @@ interrupt_timer_1:
   sjmp interrupt_timer_1_exit
 interrupt_timer_1_not_ff:
   ;; if light is green, ignore faults
-  cjne r6, #0x04, interrupt_timer_1_check_fault
-  sjmp interrupt_timer_1_not_01
+  ;cjne r6, #0x04, interrupt_timer_1_check_fault
+  ;cjne r6, #0x02, interrupt_timer_1_check_fault
+  ;sjmp interrupt_timer_1_not_01
+  cjne r2, #0x01, interrupt_timer_1_not_01
 
   ;; Check for an un-sent fault
 interrupt_timer_1_check_fault:
