@@ -332,4 +332,3 @@ send_radio:
   mov RFST, #STX
   ret
 
-

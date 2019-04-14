@@ -428,4 +428,3 @@ receive_radio_crc_okay:
   mov A, r5
   ret
 
-
