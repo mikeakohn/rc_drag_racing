@@ -182,12 +182,12 @@ game_delay_1_sec:
 drop_tree:
   ;; Set tree to top
   mov.b #0x20, r5
+  call #check_fault
 drop_tree_loop:
   cmp.b #1, r6
   jnz dont_change_tree
   call #change_tree
 dont_change_tree:
-  call #check_fault
   cmp.w #0x02, r5
   jnz drop_tree_loop
   ret
