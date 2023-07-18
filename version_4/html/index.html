@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body { font-family:Arial,sans-serif; }
+font.score { font-family:monospace; }
+</style>
+</head>
+<body>
+
+<script type="text/javascript">
+
+var right_last = "";
+var left_last = "";
+var right_score = "";
+var left_score = "";
+var right_fault = false;
+var left_fault = false;
+var timing = false;
+var running = false;
+var time_value = "";
+
+var last_scores = new Array(16);
+var best_scores = new Array(16);
+
+// Returns true if score_1 is better than score_2.
+function isBetter(score_1, score_2)
+{
+  if (score_1.indexOf(".") == -1) { return false; }
+  if (score_2.indexOf(".") == -1) { return true; }
+
+  if (score_1 == score_2) { return false; }
+
+  score_1 = parseFloat(score_1);
+  score_2 = parseFloat(score_2);
+
+  return score_1 < score_2;
+}
+var timing = false;
+var running = false;
+var time_value = "";
+
+var last_scores = new Array(16);
+var best_scores = new Array(16);
+
+// Returns true if score_1 is better than score_2.
+function isBetter(score_1, score_2)
+{
+  if (score_1.indexOf(".") == -1) { return false; }
+  if (score_2.indexOf(".") == -1) { return true; }
+
+  if (score_1 == score_2) { return false; }
+
+  score_1 = parseFloat(score_1);
+  score_2 = parseFloat(score_2);
+
+  return score_1 < score_2;
+}
+
+function customCompare(a, b)
+{
+  return isBetter(b, a);
+}
+
+function calculateRank()
+{
+  var scores = { };
+
+  for (n = 0; n < 16; n++)
+  {
+    var score = document.getElementById("best" + n).innerHTML;
+    if (score.indexOf(".") == -1) { continue; }
+
+    scores[score] = 1;
+  }
+
+  scores = Object.keys(scores);
+  scores.sort(customCompare);
+
+  for (n = 0; n < scores.length; n++)
+  {
+    for (index = 0; index < 16; index++)
+    {
+      var score = document.getElementById("best" + index).innerHTML;
+
+      if (score == scores[n])
+      {
+        var rank = document.getElementById("rank" + index);
+        rank.innerHTML = n + 1;
+      }
+    }
+  }
+}
+
+function updateBest(index)
+{
+  last = document.getElementById("last" + index);
+  best = document.getElementById("best" + index);
+
+  if (isBetter(last.innerHTML, best.innerHTML))
+  {
+    best.innerHTML = last.innerHTML;
+  }
+}
+
+function setStatusLabel()
+{
+  var status_label = document.getElementById("status_label");
+  var left = document.forms[0].left.value;
+  var right = document.forms[0].right.value;
+
+  //console.log("left: " + left + ", right: " + right);
+
+  if (timing)
+  {
+    text = "<font color='green'>" + time_value + "</font>";
+  }
+    else
+  if (running)
+  {
+    text = "<font color='blue'>Starting</font>";
+  }
+    else
+  {
+    text = "<font color='red'>Stopped</font>";
+  }
+
+  // If the right track data has arrived, update the right player score.
+  if (right_last == "" && (right_score != "" || right_fault))
+  {
+    if (! right_fault)
+    {
+      right_last = right_score;
+    }
+
+    if (right != "" || right_fault)
+    {
+      last = document.getElementById("last" + right);
+
+      if (right_fault)
+      {
+        last.innerHTML = "fault";
+      }
+        else
+      {
+        last.innerHTML = right_last;
+        updateBest(right);
+      }
+    }
+  }
+
+  // If the left track data has arrived, update the left player score.
+  if (left_last == "" && (left_score != "" || left_fault))
+  {
+    if (! left_fault)
+    {
+      left_last = left_score;
+    }
+
+    if (left != "" || left_fault)
+    {
+      last = document.getElementById("last" + left);
+
+      if (left_fault)
+      {
+        last.innerHTML = "fault";
+      }
+        else
+      {
+        last.innerHTML = left_last;
+        updateBest(left);
+      }
+    }
+  }
+
+  status_label.innerHTML = "Status: " + text;
+
+  if (! running)
+  {
+    calculateRank();
+  }
+}
+
+function getStatus()
+{
+  var data = new XMLHttpRequest();
+  data.overrideMimeType("application/json");
+  data.open("GET", "status.json", true);
+  data.setRequestHeader('Cache-Control', 'no-cache');
+  data.onreadystatechange = function()
+  {
+    if (data.readyState === 4 && data.status == "200")
+    {
+      json = JSON.parse(data.responseText);
+      //console.log(json);
+
+      right_score = json["right_score"];
+      left_score = json["left_score"];
+      right_fault = json["right_fault"];
+      left_fault = json["left_fault"];
+      timing = json["timing"];
+      running = json["running"];
+    }
+  }
+
+  data.send(null);
+}
+
+function timerCallback()
+{
+  if (timing) { time_value += 1; }
+  setStatusLabel();
+
+  getStatus();
+
+  if (running)
+  {
+    setTimeout(timerCallback, 1000);
+  }
+}
+
+function startRace()
+{
+  left_last = "";
+  right_last = "";
+  left_score = "";
+  right_score = "";
+  right_fault = false;
+  left_fault = false;
+  time_value = 0;
+  running = true;
+
+  var left = document.forms[0].left.value;
+  var right = document.forms[0].right.value;
+  document.getElementById("last" + right).innerHTML = "";
+  document.getElementById("last" + left).innerHTML = "";
+
+  // Query webserver to start the race.
+  var data = new XMLHttpRequest();
+  data.overrideMimeType("application/json");
+  data.open("GET", "start.json", true);
+  data.setRequestHeader('Cache-Control', 'no-cache');
+  data.onreadystatechange = function()
+  {
+    if (data.readyState === 4 && data.status == "200")
+    {
+      json = JSON.parse(data.responseText);
+      if (json["status"] == "ok")
+      {
+        setTimeout(timerCallback, 1000);
+      }
+    }
+  }
+
+  data.send(null);
+}
+
+</script>
+
+<center><h2>Drag Race</h2></center>
+
+<p><center><div id="status_label">Status: <font color='red'>stopped</font></div></center></p>
+
+<form name="stats">
+<table>
+<tr>
+<td></td>
+<td><b>Player</b></td>
+<td><b>Last Score</b></td>
+<td><b>Best Score</b></td>
+<td><b>Rank</b></td>
+<td><b>Left</b></td>
+<td><b>Right</b></td>
+</tr>
+
+<script type="text/javascript">
+
+for (n = 0; n < 16; n++)
+{
+  document.write("<tr>\n");
+  document.write("<td>" + (n + 1) + "</td>");
+  document.write("<td><input type='text' id='player" + n + "'></td>");
+  document.write("<td align='right'><font class='score'><div id='last" + n + "'></div></font></td>");
+  document.write("<td align='right'><font class='score'><div id='best" + n + "'></div></font></td>");
+  document.write("<td align='right'><font class='score'><div id='rank" + n + "'>-</div></font></td>");
+  document.write("<td><input type='radio' name='left' value='" + n + "'</td>");
+  document.write("<td><input type='radio' name='right' value='" + n + "'</td>");
+  document.write("</tr>\n");
+}
+
+</script>
+
+</table>
+<br><br>
+<center><button type="button" onclick="startRace();">Start Race</button></center>
+</form>
+
+</body>
+</html>
+
