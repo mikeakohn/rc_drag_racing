@@ -1,5 +1,5 @@
 .8051
-.include "../include/wixel.inc"
+.include "wixel.inc"
 
 ;; r0 -
 ;; r1 -
@@ -101,7 +101,7 @@ wait_clock:
   mov SLEEP, A
 
   // Init radio registers
-.include "../include/radio_registers.inc"
+.include "include/radio_registers.inc"
 
   SET_REGISTER(CHANNR, 128)
   SET_REGISTER(PKTLEN, PACKET_LEN)
@@ -208,7 +208,7 @@ done_light_check:
   ljmp main
 
 interrupt_timer_1:
-  push psw
+  push PSW
   push ACC
 
   ;; if r6 is 0xff don't drop lights or make sound.
@@ -315,7 +315,7 @@ interrupt_timer_1_drop_lights:
 
 interrupt_timer_1_exit:
   pop ACC
-  pop psw
+  pop PSW
   reti
 
 send_radio:

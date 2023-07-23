@@ -1,5 +1,5 @@
 .8051
-.include "../include/wixel.inc"
+.include "wixel.inc"
 
 ;; r0 -
 ;; r1 -
@@ -97,7 +97,7 @@ wait_clock:
   mov SLEEP, A
 
   // Init radio registers
-.include "../include/radio_registers.inc"
+.include "include/radio_registers.inc"
 
   SET_REGISTER(CHANNR, 128)
   SET_REGISTER(PKTLEN, PACKET_LEN)
@@ -389,12 +389,12 @@ wait_spi:
   ret
 
 interrupt_timer_1:
-  push psw
+  push PSW
   push ACC
   ;xrl P2, #0x02
   lcall inc_display
   pop ACC
-  pop psw
+  pop PSW
   reti
 
 receive_radio:
